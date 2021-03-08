@@ -1,0 +1,741 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Impoprting the required libraries
+
+```{r load-packages, include=FALSE}
+#The first step in writing the code to perform the tasks is,importing the required libraries , as it is shown ,all the required libraries for this is imported and ready to start the study.
+
+library(dplyr)
+library(magrittr)
+library(knitr)
+library(ggplot2)
+library(plotly)
+library(hrbrthemes)
+library(Hmisc)
+library(corrplot)
+library("PerformanceAnalytics")
+#library(ggheatmap)
+library(heatmaply)
+#library(formatted_cors)
+library(ggeasy)
+library(tidyverse)
+library(lubridate)
+library(reshape2)
+library(ggridges)
+library(ggcorrplot)
+library("devtools")
+library("ggExtra")
+library(viridis)
+library(rayshader) # for all the fun
+```
+
+# Task 1 (Preliminary data analysis)
+
+## Loading dataset
+
+**The first step is to load the data and to achieve so the code below is used the dataset consist of three separate files ,the first file is the input signal which consist of four columns and the second file is the output "y" and the last file is the time**
+
+```{r}
+# this peace of code is to load the dataset
+x = read.table("x.csv", header = F, sep = ",", dec = ".")
+y = read.table("y.csv", header = F, sep = ",", dec = ".")
+time = read.table("time.csv", header = F, sep = ",", dec = ".")
+#skip first row
+time = read.table("time.csv", header = F, skip = 1)
+time = rbind(0, time)
+```
+
+#### initial data exploration using the "head function"
+
+```{r}
+head(x)
+```
+
+**after loading the data , Renaming the input columns for convenient EDA**
+
+```{r}
+#after loading the data , Renaming the input columns for convenient EDA
+colnames(x) = paste0(rep("x",ncol(x)),1:ncol(x))
+colnames(y) = "y"
+colnames(time) = "time"
+
+# combining the data
+```
+
+#### combining the data
+
+```{r}
+df = cbind(time,y,x)
+df1 = cbind(y,x)
+```
+
+#### checking the dataframe using the head function
+
+```{r}
+head(df)
+```
+
+# Task 1:EDA(Exploratory data analysis)
+
+## Time series plots (of input and output EEG signals)
+
+### Time series plots of the input signal versus time
+
+```{r}
+# By calling and rerunning this function , the tiemseries plot for the EEG signal input/output will be generated with
+
+ timest <- function(y,y_label,colour, title){       
+   plot(df$time,y, type="l", col=colour,lwd=1,xlab="time",ylab=y_label,main= title)}  
+
+
+
+```
+
+```{r}
+timest(df$y,"x","blue", "time VS EEG5 output signal")
+
+```
+
+# timeseries plot for the EEG signal input/output using ggplot
+
+```{r}
+# The piece code below will populate a timeseries plot for the the 5 EEG signal by using the "melt" to change the data from wide data to long data , then using ggplot facet_wrap 
+
+d <- melt(df, id = 1:5, measure = 1:ncol(df), color = variable) # changing the data from wide to long 
+
+d[c(202:length(d$value)),]   # defining the length of the value in the long data 
+
+ggplot(d[c(202:length(d$value)),], aes(x = time, y = value),colour = variable) +
+  geom_line() + geom_line(aes(colour = variable))+
+  facet_wrap(~ variable, scales = "free_y", ncol  = 1, strip.position = "right")+guides(color=FALSE)
+
+```
+
+## Task 1.2 Distribution for each EEG signal
+
+```{r}
+# by calling the function below and inputting the signal/data under investigation a histogram plot,will be populated ,the function also alow us to change axis labels and title. 
+his<- function(x,input_X,plot_title){
+  h <- hist(x, plot=FALSE)
+  h$density = h$counts/sum(h$counts) * 100
+  plot(h, main=plot_title,
+  lines(density(x)),
+  xlab=input_X ,
+  ylab="Relative frequency %",
+  col="blue",
+  freq=FALSE)
+rug(x)}
+```
+
+#### the distribution of the EEG output signal plot using the kernel density
+
+```{r}
+# lets call the 'his' function to populate some histogram plots 
+par(mfrow=c(2,2))
+his(df$x1,"input_X1","Distribution of EEG signal input x1")
+his(df$x2,"input_X2","Distribution of EEG signal input x2")
+his(df$x3,"input_X3","Distribution of EEG signal input x3")
+his(df$x4,"input_X4","Distribution of EEG signal input x4")
+```
+
+```{r}
+#  the function below is to plot the histogram and density 
+#=========================================================
+his_density<- function(X,X_lab,title,colour){hist(X,
+     main=title,
+     xlab=X_lab,
+     #ylim=range(0:0.8),
+     col=colour,
+     cex.main = 1,
+     freq=FALSE)
+lines(density(X))}
+
+
+```
+
+```{r}
+# calling the function that was created in the above section 'his_density' and populating histigoram with density plot to check the distribution of the signals
+
+par(mfrow=c(2,2))
+his_density(df$x1,"input X1","Distribution of EEG signal input x1","green")
+his_density(df$x2,"input X2","Distribution of EEG signal input x2","blue")
+his_density(df$x3,"input X3","Distribution of EEG signal input x3","red")
+his_density(df$x4,"input X4","Distribution of EEG signal input x4","green")
+
+```
+
+```{r echo=True}
+## further investigation for the signals distribution and checking for outliers ,the code below will plot the boxplot for the EEG signal input and output
+d <- melt(df, id = 1:5, measure = 1:ncol(df), color = variable) # changing the data
+d[c(202:length(d$value)),]
+
+#library(ggplot2)
+ggplot(d[c(202:length(d$value)),], aes(x = value),colour = variable) +
+  geom_boxplot(width=TRUE)+geom_boxplot(aes(colour = variable))+
+  facet_wrap(~ variable, scales = "free_y", nrow  = 1, strip.position = "top")+guides(color=FALSE) + coord_flip()
+```
+
+```{r}
+## its good to try differnt approach for that purpose ,violin plot can be plotted using the code below 
+ggplot(d[c(202:length(d$value)),], aes(x = time,y=value),colour = variable) +
+  geom_violin(width=TRUE)+geom_violin(aes(colour = variable))+
+  facet_wrap(~ variable, scales = "free_y", nrow  = 1, strip.position = "top")+guides(color=FALSE)# + coord_flip()
+```
+
+```{r}
+ggplot(d[c(202:length(d$value)),], aes(x=value, color=variable, fill=variable)) + 
+ geom_histogram(aes(y=..density..), alpha=0.3, 
+                position="identity")+
+ geom_density(alpha=.1,color="black") +facet_wrap(~ variable, scales = "free_y", nrow  = 3, strip.position = "top")+guides(color=FALSE)
+
+
+```
+
+### computing skewness and kurtosis
+
+![](images/Capture1-02.PNG "skewness")
+
+![](images/Capture2-01.PNG "kurtosis")
+
+```{r}
+# the function below is for computing the skewness 
+skew_kur=function(X){
+  n=length(df$y)
+  skewness = ( sqrt(n) * sum( (X - mean(X))^3 ) ) / (sqrt( sum( (X - mean(X))^2 ) ))^3
+return(skewness)}
+
+
+```
+
+```{r}
+# let's compute the skewness and kurtosis for the signals for better understanding its distribution
+
+print("=== skewness and kurtosis of EEG signals ===")
+print(paste0('skewness of x1 =',skewness(df$x1)))
+print(paste0('kurtosis of x1 =',kurtosis(df$x1)))
+print("-------------------------------------------")
+print(paste0('skewness of x2 =',skewness(df$x2)))
+print(paste0('kurtosis of x2 =',kurtosis(df$x2)))
+print("-------------------------------------------")
+print(paste0('skewness of x3 =',skewness(df$x3)))
+print(paste0('kurtosis of x3 =',kurtosis(df$x3)))
+print("-------------------------------------------")
+print(paste0('skewness of x4 =',skewness(df$x4)))
+print(paste0('kurtosis of x4 =',kurtosis(df$x4)))
+print("-------------------------------------------")
+print(paste0('skewness of y =',skewness(df$y)))
+print(paste0('kurtosis of y =',kurtosis(df$y)))
+print("-------------------------------------------")
+```
+
+## Correlation and scatter plots (between different input EEG signals and the output EEG) to
+
+examine their dependencies
+
+## Correlation and scatter plots (between different input EEG signals and the output EEG) to examine their dependencies
+
+#### Compute correlation matrix
+
+```{r}
+# computing correlation matrxi
+res <- cor(df1)
+round(res, 2)
+```
+
+#### Use rcorr() function
+
+```{r}
+#using rcorr in R to compute correlation matrix 
+corr_mat <- function(X,title){res2 <- rcorr(as.matrix(df1),type=X)#c("pearson","spearman"))
+ggcorrplot(res2$r,hc.order=TRUE,
+           type="full",
+           lab_size=3,
+           lab = TRUE,
+           colors = c("tomato2","red","springgreen3"),
+           method="square",
+           title=(title),
+           ggtheme=theme_bw)}
+
+
+
+```
+
+### Visualize correlation matrix
+
+```{r}
+###visualising correlation matrix using gridExtra
+
+require(gridExtra)
+grid.arrange(corr_mat("pearson","EEG signal input/out\ncorrelation with pearson matrix\n "),
+             corr_mat("spearman","EEG signal input/out\ncorrelation with spearman matrix\n"),
+             ncol=2)
+```
+
+### scatter plots of EEG signals
+
+**\# the function below is to plot scatter for the input/out EEG signal to check dependency ,the function arguments consist of X which can be replaced by the desired data ,xlabel= can be replaced by desired corresponding x label and "meth" the smoothing line to fit can be replaced by the desired line such as lm for linear regression or leoss for polynomial.**
+
+```{r}
+# the function below is to plot scatter for the input/out EEG signal to check dependency ,the function arguments consist of X which can be replaced by the desired data ,xlabel= can be replaced by desired corresponding x label and "meth" the smoothing line to fit can be replaced by the desired line such as lm for linear regression or leoss for polynomial.
+
+scatter_func<- function(X,xlabel,meth){ggplot(df1, aes(x=X, y=y))+
+  geom_point(shape=21,xlabel="x1") +
+  geom_smooth(method=meth, 
+              color="red",
+              size=0.5,formula=y~x)+xlab(xlabel) + ylab("EEG output signal 'y' ")}
+
+```
+
+```{r}
+# by calling the function for plotting sactter and using grid.arrenge all the four EEG input signals can be plotted against the output and visualised as two columns
+
+
+require(gridExtra)
+grid.arrange(scatter_func(df$x1,"input x1","lm"),
+             scatter_func(df$x2,"input x2","lm"),
+             scatter_func(df$x3,"input x3","lm"), 
+             scatter_func(df$x4,"input x4","lm"),
+             ncol=2)
+
+
+```
+
+# Task 2: Regression -- modelling the relationship between EEG signals
+
+```{r}
+chart.Correlation(df1, histogram=TRUE, pch=19)
+```
+
+# Task 2 Linear regression
+
+## Task 2.1
+
+```{r}
+#as.matrix(sapply(df, as.numeric)) 
+```
+
+**The main aim of this task to find the best candidate model that best describes the input and output relationship of the EEG signal**
+
+#### ===The five candidate models are shown below ,from Model1 to Model 5 respectively=
+
+![](images/candi.png)
+
+## Estimating the parameters for the five candidate models using Least-square method
+
+![](images/Capture3.PNG)
+
+The first task in this section is estimating the five models parameters using the equation above which is the geometric interpretation for the least-square estimation , in the chunk below the estimated parameters are computed for all the five models
+
+```{r}
+# ===computing the estimated paramters for model1=========== 
+
+x_ones = matrix(1 , length(df$x1),1)
+Model_x1 = cbind(df$x4,df$x1^2,df$x1^3,df$x3^4,x_ones)
+theta_hat1 <- solve(t(Model_x1) %*% Model_x1)%*%(t(Model_x1) %*% df$y)
+
+# ===computing the estimated paramters for model2===========
+
+Model_x2 = cbind(df$x3^3,df$x3^4,x_ones)
+theta_hat2 <- solve(t(Model_x2) %*% Model_x2)%*%(t(Model_x2) %*% df$y)
+print(theta_hat2)
+
+# ===computing the estimated paramters for model3===========
+
+Model_x3 = cbind(df$x2,df$x1^3,df$x3^4,x_ones)
+theta_hat3 <- solve(t(Model_x3) %*% Model_x3)%*%(t(Model_x3) %*% df$y)
+
+
+# ===computing the estimated paramters for model4===========
+
+Model_x4 = cbind(df$x4,df$x1^3,df$x3^4,x_ones)
+theta_hat4 <- solve(t(Model_x4) %*% Model_x4)%*%(t(Model_x4) %*% df$y)
+
+# ===computing the estimated paramters for model5===========
+
+Model_x5 = cbind(df$x4,df$x1^2,df$x1^3,df$x3^4,df$x1^4,x_ones)
+theta_hat5 <- solve(t(Model_x5) %*% Model_x5)%*%(t(Model_x5) %*% df$y)
+
+
+```
+
+**let's put the estimated parameters in list and rename for presentation purpose**
+
+```{r}
+#let's put the estimated parameters in list and rename for presentation purpose
+
+Mylist<- list(theta_hat1,theta_hat2,theta_hat3,theta_hat4,theta_hat5)
+names(Mylist) <- c("Estimated_parameters_for_model1", "Estimated_parameters_for_model2", "Estimated_parameters_for_model3","Estimated_parameters_for_model4","Estimated_parameters_for_model5")
+Mylist
+
+```
+
+## Task 2.2
+
+**Based on the estimated model parameters, compute the model residual (error) sum of squared errors (RSS), for every candidate model**
+
+**Equation for RSS** ![](images/RSS.PNG)
+
+#### computing The SSE for the first model
+
+```{r}
+# Define a simple function to compute RSS and predicted output
+RSS_fun=function(model,theta_hat,y_Hat,RSS,RSS_model){
+  y_Hat = model %*% theta_hat
+  RSS = sum((y-y_Hat)^2)
+  print(paste0(RSS_model ,RSS))
+}
+RSS_fun1=function(model,theta_hat,y_Hat){
+  y_Hat =  model%*%theta_hat 
+  RSS = sum((y-y_Hat)^2)
+  
+}
+y_Hat1 = Model_x1 %*% theta_hat1
+y_Hat2 = Model_x2 %*% theta_hat2
+y_Hat3 = Model_x3 %*% theta_hat3
+y_Hat4 = Model_x4 %*% theta_hat4
+y_Hat5 = Model_x5 %*% theta_hat5
+```
+
+```{r}
+RSS_fun(Model_x1,theta_hat1,y_Hat1,RSS1,'RSS_for_model1 = ')
+RSS2=RSS_fun(Model_x2,theta_hat2,y_Hat2,RSS2,'RSS_for_model2 = ')
+RSS3=RSS_fun(Model_x3,theta_hat3,y_Hat3,RSS3,'RSS_for_model3 = ')
+RSS4=RSS_fun(Model_x4,theta_hat4,y_Hat4,RSS4,'RSS_for_model4 = ')
+RSS5=RSS_fun(Model_x5,theta_hat5,y_Hat5,RSS5,'RSS_for_model5 = ')
+
+```
+
+```{r}
+RSS1=RSS_fun1(Model_x1,theta_hat1,y_Hat1)
+RSS2=RSS_fun1(Model_x2,theta_hat2,y_Hat2)
+RSS3=RSS_fun1(Model_x3,theta_hat3,y_Hat3)
+RSS4=RSS_fun1(Model_x4,theta_hat4,y_Hat4)
+RSS5=RSS_fun1(Model_x5,theta_hat5,y_Hat5)
+```
+
+## Task 2.3 (Compute the log-likelihood function for every candidate model:)
+
+![](images/log.PNG)
+
+The variance of the model predictions residuals error ![](images/log1.PNG)
+
+**The function below is to compute the log-likelihood function**
+
+```{r}
+# the function below is to compute log-likelihhood function 
+log_like <- function(RSS){
+  N       <- 201
+  sigma <- RSS / (N - 1)
+ 
+  loglik  <-  -.5*N * log(2*pi) - .5*N * log(sigma) - RSS / (2*sigma) 
+  return(loglik)
+}
+```
+
+```{r}
+log_likely_function1 = log_like(RSS1)
+print(paste0('log-likelihood function for model1 =',log_likely_function1))
+log_likely_function2 = log_like(RSS2)
+print(paste0('log-likelihood function for model2 =',log_likely_function2))
+log_likely_function3 = log_like(RSS3)
+print(paste0('log-likelihood function for model3 =',log_likely_function3))
+log_likely_function4 = log_like(RSS4)
+print(paste0('log-likelihood function for model4 =',log_likely_function4))
+log_likely_function5 = log_like(RSS5)
+print(paste0('log-likelihood function for model5 =',log_likely_function5))
+```
+
+## Task 2.4 (Compute the Akaike information criterion (AIC) and Bayesian information criterion (BIC) for every candidate model:)
+
+**The Akaike information criterion for all five candidate models will be computed using the equation below**
+
+![](images/AIC.PNG)
+
+```{r}
+# code to compute Akaike information criterion (AIC)
+AIC_1 = 2*length(theta_hat1) - 2*log_likely_function1
+print(paste0('AIC for model 1 =' ,AIC_1))
+
+AIC_2 = 2*length(theta_hat2) - 2*log_likely_function2
+print(paste0('AIC for model 2 =', AIC_2))
+
+AIC_3 = 2*length(theta_hat3) - 2*log_likely_function3
+print(paste0('AIC for model 3 =' ,AIC_3))
+
+AIC_4 = 2*length(theta_hat4) - 2*log_likely_function4
+print(paste0('AIC for model 4 =', AIC_4))
+
+AIC_5 = 2*length(theta_hat5) - 2*log_likely_function5
+print(paste0('AIC for model 5 =' ,AIC_5))
+
+```
+
+**The BIC for every candidate model will be computed using the equation below**
+
+![](images/BIC.PNG)
+
+```{r}
+# code to compute Bayesian information criterion (BIC)  
+N  <- 201
+BIC_1 = log(N)*length(theta_hat1) - 2*log_likely_function1
+print(paste0('BIC for model 1 =',BIC_1))
+
+BIC_2 = log(N)*length(theta_hat2) - 2*log_likely_function2
+print(paste0('BIC for model 2 =',BIC_2))
+
+BIC_3 = log(N)*length(theta_hat3) - 2*log_likely_function3
+print(paste0('BIC for model 3 =',BIC_3))
+
+BIC_4 = log(N)*length(theta_hat4) - 2*log_likely_function4
+print(paste0('BIC for model 4 =',BIC_4))
+
+BIC_5 = log(N)*length(theta_hat5) - 2*log_likely_function5
+print(paste0('BIC for model 5 =',BIC_5))
+```
+
+## Task 2.5 Check the distribution of model prediction errors (residuals) for each candidate model. Plot the error distributions, and evaluate if those distributions are close to Normal/Gaussian (as the output EEG has additive Gaussian noise), e.g. by using Q-Q plot.
+
+```{r}
+error1=df$y-y_Hat1
+error2=df$y-y_Hat2
+error3=df$y-y_Hat3
+error4=df$y-y_Hat4
+error5=df$y-y_Hat5
+# par(mrow=2)
+error_dist=function(error,tit){qqnorm(error,col="red", pch = 1,main = tit, frame = FALSE)
+                     qqline(error, col = "steelblue", lwd = 2)
+   
+                       }
+```
+
+```{r}
+par(mfrow = c(2, 3)) # 2 x 2 pictures on one plot
+error_dist(error1,"Normal Q-Q Plot for\n model1 prediction errors")
+error_dist(error2,"Normal Q-Q Plot for\n model2 prediction errors")
+error_dist(error3,"Normal Q-Q Plot for\n model3 prediction errors")
+error_dist(error4,"Normal Q-Q Plot for\n model4 prediction errors")
+error_dist(error5,"Normal Q-Q Plot for\n model5 prediction errors")
+```
+
+### skewness
+
+```{r}
+print("=== skewness and kurtosis of candidate models prediction error ===")
+print(paste0('skewness of model1 prediction error = ',skewness(error1)))
+print(paste0('kurtosis of model1 prediction error = ',kurtosis(error1)))
+
+print("-------------------------------------------")
+
+print(paste0('skewness of model2 prediction error = ',skewness(error2)))
+print(paste0('kurtosis of model2 prediction error = ',kurtosis(error2)))
+
+print("-------------------------------------------")
+
+print(paste0('skewness of model3 prediction error = ',skewness(error3)))
+print(paste0('kurtosis of model3 prediction error = ',kurtosis(error3)))
+
+print("-------------------------------------------")
+
+print(paste0('skewness of model4 prediction error = ',skewness(error4)))
+print(paste0('kurtosis of model4 prediction error = ',kurtosis(error4)))
+
+print("-------------------------------------------")
+
+print(paste0('skewness of  model5 prediction error ',skewness(error5)))
+print(paste0('kurtosis of model5 prediction error = ',kurtosis(error5)))
+
+print("-------------------------------------------")
+
+##============================
+
+```
+
+## Task 2.7
+
+#### Split the input and output EEG dataset (� and �) into two parts:one part used to train the model, the other used for testing (e.g.70% for training, 30% for testing). For the selected 'best' model,1) estimate model parameters use the training dataset; 2) compute
+
+the model's output/prediction on the testing data; and 3) also compute the 95% (model prediction) confidence intervals and plot them (with error bars) together with the mean values of the model prediction, as well as the testing data samples.
+
+#### splitting the dataset into training and testing dataset
+
+```{r}
+# Split dataset
+#help(floor)
+# 70% of the dataset
+
+
+# dataset <- sample(seq_len(nrow(df1)), size = size)
+# 
+# train <- df[dataset, ]
+# test <- df[-dataset, ]
+# #==============================
+# help(floor)
+# # 70% of the dataset
+# size <- floor(0.70 * nrow(df1))
+# #set.seed(1)
+# #dataset1 <- sample(seq_len(nrow(df1$y)), size = size)
+set.seed(1)
+train1 <- Model_x3[1:140, ]
+test1 <- Model_x3[141:201, ]
+train <- df1[1:140, ]
+test <- df1[141:201, ]
+ytrain<- train$y
+ytest <- test$y
+
+ 
+```
+
+### Task 2.7 .1) estimate model parameters use the training dataset
+
+```{r}
+#x3 = matrix(train$x^3)
+#x_ones1 = matrix(1 , length(train$x1),1)
+#Model_x4_train= cbind(train$x4,train$x1^3,train$x3^4,x_ones1)
+
+theta_hat_train3 <- solve(t(train1) %*% train1)%*%t(train1) %*% as.matrix(ytrain)
+#print(paste0theta_hat_train3)
+#ytrain1
+```
+
+### Task 2.7 .2) Computing model prediction output in testing data
+
+```{r}
+#Model_x3_test=cbind(test$x1,test$x2,test$x3,test$x4)
+y_Hat_best = test1 %*% theta_hat_train3
+```
+
+```{r}
+
+RSS_best = sum((ytest - y_Hat_best)^2)
+
+#---------------------------------------
+
+#theta = matrix(c(2,0.3) , number_of_parameters , 1)
+n=length(test$x1)
+sigma_2 = ((RSS_best /( n - 1 ))^2)           # error variance sigma^2
+# X=matrix()
+cov_thetaHat = sigma_2 * (solve(t(test1) %*% test1))
+
+
+##==
+
+var_y = matrix(0,nrow(test1),1)
+for (i in 1:nrow(test1)){
+  X_i =matrix(test1[i,],1,4)
+  var_y[i,1]= X_i %*% cov_thetaHat%*%t(X_i)
+}
+CI=1.96*sqrt(var_y)
+
+```
+
+```{r}
+## function to plot CI with error bars ,predicted output agains data
+CI_plot <-function(X,x_input){
+    #options(repr.plot.width = 3, repr.plot.height = 3)
+    ggplot(test, aes(X, y_Hat_best)) + # ggplot2 plot with confidence intervals
+    geom_line() +
+    geom_point(col="green", size=1.3) +
+    guides(color=FALSE)+
+    geom_errorbar(aes(ymin = y_Hat_best - CI, ymax = y_Hat_best + CI, col="red"), width=.2)+ theme_bw()+ labs( x =x_input )
+}
+
+
+```
+
+```{r}
+## visualising plots 
+require(gridExtra)
+grid.arrange(CI_plot(test$x1,"test_x1"),
+             CI_plot(test$x2,"test_x2"),
+             CI_plot(test$x3,"test_x3"),
+             CI_plot(test$x4,"test_x4"),
+             ncol=2)
+
+```
+
+## Task 3 : Approximate Bayesian Computation (ABC)
+
+```{r}
+n_sample=50000
+y1=as.numeric(df$y)
+param1=matrix(runif(n_sample,min = theta_hat3[1,]-(0.08),max = theta_hat3[1,]+(0.08)))   #creating paramter 1 for prior distribution 
+paramt2=matrix(runif(n_sample,min = theta_hat3[4,]-abs(0.08),max = theta_hat3[4,]+abs(0.08)))     #creating paramter 2 for prior distribution 
+
+
+paramerter=cbind(param1,paramt2)
+accepeted_Theta=matrix(ncol = 2,)
+rejected_Theta=matrix(ncol = 2,)
+
+for (i in 1:n_sample){
+  task3theta=theta_hat3
+  task3theta[4,] = paramt2[i]
+  task3theta[1,] = param1[i]
+  output= Model_x3%*%task3theta                #prior data
+  ssetask3=sum((y1-output)^2)
+if ((ssetask3-RSS3)<=(RSS3/201)){
+  if(all(is.na(accepeted_Theta))==TRUE){
+    accepeted_Theta=rbind(paramerter[i,])
+  }else{
+    accepeted_Theta=rbind(accepeted_Theta,paramerter[i,])
+    
+    }
+ }
+ if ((ssetask3-RSS3)>(RSS3/201)){
+  if(all(is.na(rejected_Theta))==TRUE){
+    rejected_Theta=rbind(paramerter[i,])
+  }else{
+    rejected_Theta=rbind(rejected_Theta,paramerter[i,])
+    
+    }
+  } 
+  
+}
+
+```
+
+```{r}
+datam = rbind(rejected_Theta, accepeted_Theta)
+data = data.frame("theta_1" = datam[,1],
+                  "theta_2" = datam[,2])
+
+datareject = data.frame("theta_1" = rejected_Theta[,1],
+                  "theta_2" = rejected_Theta[,2])
+datacc = data.frame("theta_1" = accepeted_Theta[,1],
+                  "theta_2" = accepeted_Theta[,2])
+ABC_plot <- ggplot(data, aes(x=theta_1, y=theta_2))+
+  geom_point(data = datacc,colour="red")+
+geom_point(data = datareject, colour="green") 
+
+#####
+## creating  a marginal plot 
+marginal_plot= ggExtra::ggMarginal(
+  data=datacc, 
+  p = ABC_plot,
+  type = 'densigram',
+  margins = 'both',
+  size = 3.5,
+  colour = 'black',
+  fill = 'purple'
+)
+marginal_plot
+```
+
+```{r}
+## creating a joint plot 
+ABC_Plot1<- ggplot(data, aes(x=theta_1, y=theta_2))+
+   stat_density_2d(data=datareject,aes(fill = ..level..), geom = "polygon", colour="purple")+
+   stat_density_2d(data=datacc,aes(fill = ..level..), geom = "polygon", colour="white")+ scale_fill_viridis_c(option = "A")
+ABC_Plot1
+```
+
+```{r}
+## Lets visualise our plot in 3d mode
+plot_gg(ABC_Plot1,multicore=TRUE,width=5,height=5,scale=250,windowsize=c(1400,866),
+       zoom = 0.55, phi = 30)
+render_snapshot()
+
+
+```
